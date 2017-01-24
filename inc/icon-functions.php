@@ -14,10 +14,12 @@ function twentyseventeen_include_svg_icons() {
 	// Define SVG sprite file.
 	$svg_icons = get_parent_theme_file_path( '/assets/images/svg-icons.svg' );
 
+
 	// If it exists, include it.
 	if ( file_exists( $svg_icons ) ) {
 		require_once( $svg_icons );
 	}
+
 }
 add_action( 'wp_footer', 'twentyseventeen_include_svg_icons', 9999 );
 
@@ -49,7 +51,6 @@ function twentyseventeen_get_svg( $args = array() ) {
 		'icon'        => '',
 		'title'       => '',
 		'desc'        => '',
-		'aria_hidden' => true, // Hide from screen readers.
 		'fallback'    => false,
 	);
 
@@ -57,38 +58,53 @@ function twentyseventeen_get_svg( $args = array() ) {
 	$args = wp_parse_args( $args, $defaults );
 
 	// Set aria hidden.
-	$aria_hidden = '';
-
-	if ( true === $args['aria_hidden'] ) {
-		$aria_hidden = ' aria-hidden="true"';
-	}
+	$aria_hidden = ' aria-hidden="true"';
 
 	// Set ARIA.
 	$aria_labelledby = '';
 
-	if ( $args['title'] && $args['desc'] ) {
-		$aria_labelledby = ' aria-labelledby="title desc"';
+	/*
+	 * Twenty Seventeen doesn't use the SVG title or description attributes; non-decorative icons are described with .screen-reader-text.
+	 *
+	 * However, child themes can use the title and description to add information to non-decorative SVG icons to improve accessibility.
+	 *
+	 * Example 1 with title: <?php echo twentyseventeen_get_svg( array( 'icon' => 'arrow-right', 'title' => __( 'This is the title', 'textdomain' ) ) ); ?>
+	 *
+	 * Example 2 with title and description: <?php echo twentyseventeen_get_svg( array( 'icon' => 'arrow-right', 'title' => __( 'This is the title', 'textdomain' ), 'desc' => __( 'This is the description', 'textdomain' ) ) ); ?>
+	 *
+	 * See https://www.paciellogroup.com/blog/2013/12/using-aria-enhance-svg-accessibility/.
+	 */
+	if ( $args['title'] ) {
+		$aria_hidden     = '';
+		$unique_id       = uniqid();
+		$aria_labelledby = ' aria-labelledby="title-' . $unique_id . '"';
+
+		if ( $args['desc'] ) {
+			$aria_labelledby = ' aria-labelledby="title-' . $unique_id . ' desc-' . $unique_id . '"';
+		}
 	}
 
 	// Begin SVG markup.
 	$svg = '<svg class="icon icon-' . esc_attr( $args['icon'] ) . '"' . $aria_hidden . $aria_labelledby . ' role="img">';
 
-	// If there is a title, display it.
+	// Display the title.
 	if ( $args['title'] ) {
-		$svg .= '<title>' . esc_html( $args['title'] ) . '</title>';
+		$svg .= '<title id="title-' . $unique_id . '">' . esc_html( $args['title'] ) . '</title>';
+
+		// Display the desc only if the title is already set.
+		if ( $args['desc'] ) {
+			$svg .= '<desc id="desc-' . $unique_id . '">' . esc_html( $args['desc'] ) . '</desc>';
+		}
 	}
 
-	// If there is a description, display it.
-	if ( $args['desc'] ) {
-		$svg .= '<desc>' . esc_html( $args['desc'] ) . '</desc>';
-	}
-
-	// Use absolute path in the Customizer so that icons show up in there.
-	if ( is_customize_preview() ) {
-		$svg .= '<use xlink:href="' . get_parent_theme_file_uri( '/assets/images/svg-icons.svg#icon-' . esc_html( $args['icon'] ) ) . '"></use>';
-	} else {
-		$svg .= '<use xlink:href="#icon-' . esc_html( $args['icon'] ) . '"></use>';
-	}
+	/*
+	 * Display the icon.
+	 *
+	 * The whitespace around `<use>` is intentional - it is a work around to a keyboard navigation bug in Safari 10.
+	 *
+	 * See https://core.trac.wordpress.org/ticket/38387.
+	 */
+	$svg .= ' <use href="#icon-' . esc_html( $args['icon'] ) . '" xlink:href="#icon-' . esc_html( $args['icon'] ) . '"></use> ';
 
 	// Add some markup to use as a fallback for browsers that do not support SVGs.
 	if ( $args['fallback'] ) {
@@ -139,7 +155,7 @@ function twentyseventeen_dropdown_icon_to_menu_link( $title, $item, $args, $dept
 	if ( 'top' === $args->theme_location ) {
 		foreach ( $item->classes as $value ) {
 			if ( 'menu-item-has-children' === $value || 'page_item_has_children' === $value ) {
-				$title = $title . twentyseventeen_get_svg( array( 'icon' => 'expand' ) );
+				$title = $title . twentyseventeen_get_svg( array( 'icon' => 'angle-down' ) );
 			}
 		}
 	}
@@ -154,7 +170,7 @@ add_filter( 'nav_menu_item_title', 'twentyseventeen_dropdown_icon_to_menu_link',
  * @return array $social_links_icons
  */
 function twentyseventeen_social_links_icons() {
-	// Supported social links icons.
+// Supported social links icons.
 	$social_links_icons = array(
 		'behance.net'     => 'behance',
 		'codepen.io'      => 'codepen',
@@ -183,6 +199,7 @@ function twentyseventeen_social_links_icons() {
 		'soundcloud.com'  => 'soundcloud',
 		'spotify.com'     => 'spotify',
 		'stumbleupon.com' => 'stumbleupon',
+		'tripadvisor.com' => 'tripadvisor',
 		'tumblr.com'      => 'tumblr',
 		'twitch.tv'       => 'twitch',
 		'twitter.com'     => 'twitter',
@@ -194,6 +211,12 @@ function twentyseventeen_social_links_icons() {
 		'yelp.com'        => 'yelp',
 		'youtube.com'     => 'youtube',
 	);
-
+	/**
+	 * Filter Twenty Seventeen social links icons.
+	 *
+	 * @since Twenty Seventeen 1.0
+	 *
+	 * @param array $social_links_icons
+	 */
 	return apply_filters( 'twentyseventeen_social_links_icons', $social_links_icons );
 }
